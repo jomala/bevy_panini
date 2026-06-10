@@ -19,7 +19,7 @@ use bevy::{
         view::ViewTarget,
     },
 };
-use crate::settings::PaniniSettings;
+use crate::settings::PaniniShaderSettings;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
 pub struct PaniniLabel;
@@ -36,11 +36,11 @@ impl ViewNode for PaniniNode {
     // This query will only run on the view entity
     type ViewQuery = (
         &'static ViewTarget,
-        // This makes sure the node only runs on cameras with the PaniniSettings component
-        &'static PaniniSettings,
+        // This makes sure the node only runs on cameras with the PaniniShaderSettings component
+        &'static PaniniShaderSettings,
         // As there could be multiple post processing components sent to the GPU (one per camera),
         // we need to get the index of the one that is associated with the current view.
-        &'static DynamicUniformIndex<PaniniSettings>,
+        &'static DynamicUniformIndex<PaniniShaderSettings>,
     );
 
     // Runs the node logic
@@ -73,7 +73,7 @@ impl ViewNode for PaniniNode {
         };
 
         // Get the settings uniform binding
-        let settings_uniforms = world.resource::<ComponentUniforms<PaniniSettings>>();
+        let settings_uniforms = world.resource::<ComponentUniforms<PaniniShaderSettings>>();
         let Some(settings_binding) = settings_uniforms.uniforms().binding() else {
             return Ok(());
         };
@@ -164,12 +164,17 @@ pub fn init_post_process_pipeline(
                 // The sampler that will be used to sample the screen texture
                 sampler(SamplerBindingType::Filtering),
                 // The settings uniform that will control the effect
-                uniform_buffer::<PaniniSettings>(true),
+                uniform_buffer::<PaniniShaderSettings>(true),
             ),
         ),
     );
-    // We can create the sampler here since it won't change at runtime and doesn't depend on the view
-    let sampler = render_device.create_sampler(&SamplerDescriptor::default());
+    // Create a sampler with linear filtering so the post-process sampling is bilinear
+    let sampler = render_device.create_sampler(&SamplerDescriptor {
+        mag_filter: FilterMode::Linear,
+        min_filter: FilterMode::Linear,
+        mipmap_filter: FilterMode::Linear,
+        ..Default::default()
+    });
 
     // Get the shader handle
     let shader = asset_server.load(crate::SHADER_ASSET_PATH);

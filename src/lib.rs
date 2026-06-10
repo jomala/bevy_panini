@@ -3,7 +3,7 @@ mod settings;
 
 pub mod prelude {
     pub use crate::PaniniPlugin;
-    pub use crate::settings::PaniniSettings;
+    pub use crate::settings::PaniniProjection;
 }
 
 use bevy::{
@@ -23,13 +23,13 @@ use bevy::{
     },
 };
 
-use crate::pipeline::{PaniniLabel, PaniniNode, init_post_process_pipeline};
-use crate::settings::PaniniSettings;   
+use crate::pipeline::{PaniniLabel, PaniniNode, init_post_process_pipeline}; 
+use crate::settings::{PaniniShaderSettings, copy_out_shader_settings};
 
 /// This example uses a shader source file from the assets subdirectory
 pub const SHADER_ASSET_PATH: &str = "shaders/bevy_panini.wgsl";
 
-/// It is generally encouraged to set up post processing effects as a plugin
+/// The plugin to include in your app to enable the Panini projection effect.
 pub struct PaniniPlugin;
 
 impl Plugin for PaniniPlugin {
@@ -39,17 +39,18 @@ impl Plugin for PaniniPlugin {
             // be extracted to the render world every frame.
             // This makes it possible to control the effect from the main world.
             // This plugin will take care of extracting it automatically.
-            // It's important to derive [`ExtractComponent`] on [`PaniniingSettings`]
+            // It's important to derive [`ExtractComponent`] on [`PaniniShaderSettings`]
             // for this plugin to work correctly.
-            ExtractComponentPlugin::<PaniniSettings>::default(),
+            ExtractComponentPlugin::<PaniniShaderSettings>::default(),
             // The settings will also be the data used in the shader.
             // This plugin will prepare the component for the GPU by creating a uniform buffer
             // and writing the data to that buffer every frame.
-            UniformComponentPlugin::<PaniniSettings>::default(),
+            UniformComponentPlugin::<PaniniShaderSettings>::default(),
         ));
 
         // Update the setting whenever the camera projection changes.
-        app.add_systems(Update, settings::update_settings);
+        // Copy the shader settings out of the projection before extracting them.
+        app.add_systems(PostUpdate, copy_out_shader_settings);
 
         // We need to get the render app from the main app
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
@@ -59,6 +60,7 @@ impl Plugin for PaniniPlugin {
         // RenderStartup runs once on startup after all plugins are built
         // It is useful to initialize data that will only live in the RenderApp
         render_app.add_systems(RenderStartup, init_post_process_pipeline);
+
 
         render_app
             // Bevy's renderer uses a render graph which is a collection of nodes in a directed acyclic graph.

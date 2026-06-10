@@ -22,57 +22,63 @@
 
 @group(0) @binding(0) var screen_texture: texture_2d<f32>;
 @group(0) @binding(1) var texture_sampler: sampler;
-struct PaniniSettings {
+struct PaniniShaderSettings {
     panini: f32,
     fov_x_radians: f32,
     aspect_ratio: f32,
-#ifdef SIXTEEN_BYTE_ALIGNMENT
+    compression: f32,
+    // #ifdef SIXTEEN_BYTE_ALIGNMENT
     // WebGL2 structs must be 16 byte aligned.
-    _webgl2_padding: f32
-#endif
+    // #endif
 }
-@group(0) @binding(2) var<uniform> settings: PaniniSettings;
+@group(0) @binding(2) var<uniform> settings: PaniniShaderSettings;
 
-// Main Panini Inverse Mapping Function
-fn get_panini_uv(uv: vec2<f32>) -> vec2<f32> {
-    // 1. Convert incoming UV coordinate from [0, 1] to centered [-1, 1]
-    let h_v: vec2<f32> = (uv * 2.0) - vec2<f32>(1.0);
-
-    // 2. Calculate the maximum bounds to automatically fit the screen edges
-    // This scales the math to ensure the left/right screen edges match perfectly.
+/// My fresh implementation of the Panini inverse mapping projection with compression from the original article.
+fn my_get_panini_uv_with_compression(
+    uv: vec2<f32>,
+) -> vec2<f32> {
+    // Calculate the distance from the camera to the perspective projection plane based on the horizontal field of view.
     let half_fov: f32 = settings.fov_x_radians * 0.5;
-    let max_h: f32 = ((settings.panini + 1.0) * sin(half_fov)) / (settings.panini + cos(half_fov));
+    let cam_z: f32 = 1.0 / tan(half_fov);
+
+    // Calculate the distance further back of the reprojection point from the plane.
+    let cyl_r: f32 = 1.0 / sin(half_fov);
+    let cyl_r_sq: f32 = cyl_r * cyl_r;
+    let reproj_z: f32 = cyl_r * settings.panini + cam_z;
+    let reproj_retreat: f32 = reproj_z - cam_z;
+    let reproj_retreat_sq: f32 = reproj_retreat * reproj_retreat;
+
+    // Convert incoming UV coordinates from both range [0, 1] to range [-1, 1] for x and [-1/aspect, 1/aspect] for y to match real space.
+    let reproj_x: f32 = (uv.x * 2.0) - 1.0;
+    let reproj_x_sq: f32 = reproj_x * reproj_x;
+    let reproj_y: f32 = ((uv.y * 2.0) - 1.0) / settings.aspect_ratio;
+
+    // Solve Horizontal Remapping Equation
+    // This comes from solving the quadratic for the first two equations in the check below and taking the larger root.
+    let reproj_xzlen_sq: f32 = reproj_z * reproj_z + reproj_x * reproj_x;
+    let cyl_z: f32 = (-reproj_retreat * reproj_x_sq + reproj_z * sqrt(reproj_xzlen_sq * cyl_r_sq - reproj_retreat_sq * reproj_x_sq)) / reproj_xzlen_sq;
+    let cyl_x: f32 = (cyl_z + reproj_retreat) / reproj_z * reproj_x;
+
+    // Work out the camera plane position
+    let cam_x: f32 = cyl_x / cyl_z * cam_z;
+
+    // Solve Vertical Remapping Equation (Calculate y_r)
+    // "Hard compression" can be applied here to cam_y by multiplying between 1.0 and cyl_z/cyl_r depending on a configurable factor.
+    // This straightens lines but results in more visible distortion on radial lines or in .
+    let vert_compression = settings.compression * (cyl_z / cyl_r) + (1.0 - settings.compression);
+    let cyl_y: f32 = (cyl_z + reproj_retreat) / reproj_z * reproj_y * vert_compression;
+    var cam_y: f32 = cyl_y / cyl_z * cam_z;
     
-    // Scale our current horizontal point by the maximum boundary scale
-    let h: f32 = h_v.x * max_h;
-
-    // 3. Solve Horizontal Remapping Equation (Calculate x_r)
-    let d_plus_1: f32 = settings.panini + 1.0;
-    let d_sqr: f32 = settings.panini * settings.panini;
-    let denom_factor: f32 = 1.0 - (d_sqr / (d_plus_1 * d_plus_1));
-    let gamma: f32 = sqrt(1.0 + (h * h * denom_factor));
-    
-    let x_r: f32 = (h * d_plus_1) / (d_plus_1 - (settings.panini * gamma));
-
-    // 4. Solve Vertical Remapping Equation (Calculate y_r)
-    let cos_phi: f32 = 1.0 / sqrt(1.0 + (x_r * x_r));
-    
-    // Un-scale the vertical axis using the maximum edge constraint and aspect ratio
-    let max_v: f32 = h_v.y * (tan(half_fov) / settings.aspect_ratio);
-    let y_r: f32 = max_v * ((settings.panini + cos_phi) / d_plus_1);
-
-    // 5. Re-apply the initial camera projection scale to safely fit back into texture space
-    let final_x: f32 = x_r / tan(half_fov);
-    let final_y: f32 = (y_r * settings.aspect_ratio) / tan(half_fov);
-
-    // Transform back from centered [-1, 1] space to normal [0, 1] UV space
-    return (vec2<f32>(final_x, final_y) + vec2<f32>(1.0)) * 0.5;
+    // Transform back from range [-1, 1] for x and and [-1/aspect, 1/aspect] for y to range [0, 1] UV space
+    return vec2<f32>((cam_x + 1.0) * 0.5, (cam_y * settings.aspect_ratio + 1.0) * 0.5);
 }
 
+/// Fragment shader function
 @fragment
 fn fragment(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
     // Get the corrected texture coordinate
-    let sample_uv = get_panini_uv(uv);
+    // let sample_uv = get_panini_uv(uv);
+    let sample_uv = my_get_panini_uv_with_compression(uv);
 
     // Clamping prevention: If the math samples outside the screen space, return black boundary
     if (sample_uv.x < 0.0 || sample_uv.x > 1.0 || sample_uv.y < 0.0 || sample_uv.y > 1.0) {
