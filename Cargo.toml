@@ -2,11 +2,21 @@
 name = "bevy_panini"
 version = "0.1.0"
 edition = "2024"
+authors = ["Jonathan Lawn <Jonathan.M.Lawn@gmail.com>"]
+build = false
+description = "A Panini post-processor for bevyengine.org"
+readme = "README.md"
+keywords = [
+    "bevy",
+    "gamedev",
+    "graphics",
+]
+categories = ["game-development"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jomala/bevy_panini/"
 
 [dependencies]
-bevy = { version = "0.18", features = [
-    "experimental_bevy_ui_widgets",
-] }
+bevy = "0.19"
 # Set max log levels. This helps avoid unwanted low-severity log spam, which can affect performance.
 log = { version = "0.4", features = [
     "max_level_debug",

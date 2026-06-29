@@ -1,12 +1,8 @@
-/// The custom Projection component for the Panini projection effect. 
-
+/// The custom Projection component for the Panini projection effect.
 use bevy::{
     camera::CameraProjection,
     prelude::*,
-    render::{
-        extract_component::ExtractComponent,
-        render_resource::*,
-    }
+    render::{extract_component::ExtractComponent, render_resource::*},
 };
 
 /// This component can be initialized and update by the user as a `Projection::Custom` projection on the camera.
@@ -24,13 +20,15 @@ impl CameraProjection for PaniniProjection {
 
     fn get_clip_from_view_for_sub(&self, sub_view: &bevy::camera::SubCameraView) -> Mat4 {
         let perspective_sub_view = sub_view; // TODO: Wrong?
-        self.perspective.get_clip_from_view_for_sub(perspective_sub_view)
+        self.perspective
+            .get_clip_from_view_for_sub(perspective_sub_view)
     }
 
     /// This update method is called by the camera system whenever the viewport is resized.
     fn update(&mut self, width: f32, height: f32) {
         self.perspective.update(width, height);
-        self.settings.update_settings(self.perspective.fov, self.perspective.aspect_ratio);
+        self.settings
+            .update_settings(self.perspective.fov, self.perspective.aspect_ratio);
     }
 
     fn far(&self) -> f32 {
@@ -42,6 +40,12 @@ impl CameraProjection for PaniniProjection {
     }
 }
 
+impl Default for PaniniProjection {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PaniniProjection {
     /// Create a new Panini projection with the given settings.
     /// This keys off the vertical field of view, the aspect ratio, the Panini depth parameter. The horizontal field of view is calculated based on these parameters.
@@ -50,14 +54,14 @@ impl PaniniProjection {
     pub fn new() -> Self {
         let perspective = PerspectiveProjection::default();
         let settings = PaniniShaderSettings::new(0.0, perspective.fov, perspective.aspect_ratio);
-        Self { 
+        Self {
             settings,
             enabled: true,
             perspective,
         }
     }
 
-    /// Set the initial vertical field of view. 
+    /// Set the initial vertical field of view.
     pub fn with_fov_y(mut self, fov_y_radians: f32) -> Self {
         self.update_fov_y(fov_y_radians);
         self
@@ -66,11 +70,12 @@ impl PaniniProjection {
     /// Update the vertical field of view. The horizontal field of view will be updated automatically based on the aspect ratio and the Panini depth parameter.
     pub fn update_fov_y(&mut self, fov_y_radians: f32) {
         self.perspective.fov = fov_y_radians;
-        self.settings.update_settings(fov_y_radians, self.perspective.aspect_ratio);
+        self.settings
+            .update_settings(fov_y_radians, self.perspective.aspect_ratio);
     }
 
     /// Set the initial Panini depth parameter. This will effect the horizontal field of view and the amount of distortion and blur.
-    pub fn with_panini_depth(mut self, panini: f32) -> Self{
+    pub fn with_panini_depth(mut self, panini: f32) -> Self {
         self.update_panini_depth(panini);
         self
     }
@@ -78,9 +83,9 @@ impl PaniniProjection {
     pub fn update_panini_depth(&mut self, panini: f32) {
         self.settings.update_panini_depth(panini);
     }
-    
+
     /// Set the initial compression parameter. This will effect the straightness of lines and the amount of distortion and blur.
-    pub fn with_compression(mut self, comp: f32) -> Self{
+    pub fn with_compression(mut self, comp: f32) -> Self {
         self.update_compression(comp);
         self
     }
@@ -88,9 +93,9 @@ impl PaniniProjection {
     pub fn update_compression(&mut self, comp: f32) {
         self.settings.update_compression(comp);
     }
-    
+
     /// Set the initial enabled parameter. This is a master switch for the post-processing. If disabled the perspective projection from this class remains in use.
-    pub fn with_enabled(mut self, enabled: bool) -> Self{
+    pub fn with_enabled(mut self, enabled: bool) -> Self {
         self.update_enabled(enabled);
         self
     }
@@ -116,8 +121,14 @@ pub struct PaniniShaderSettings {
 
 impl PaniniShaderSettings {
     pub fn new(panini: f32, fov_y_radians: f32, aspect_ratio: f32) -> Self {
-        assert!(panini >= 0.0 && panini <= 1.0, "Panini settings must be between 0 and 1");
-        assert!(fov_y_radians > 0.0 && fov_y_radians < std::f32::consts::PI, "FOV must be between 0 and 180 degrees");
+        assert!(
+            panini >= 0.0 && panini <= 1.0,
+            "Panini settings must be between 0 and 1"
+        );
+        assert!(
+            fov_y_radians > 0.0 && fov_y_radians < std::f32::consts::PI,
+            "FOV must be between 0 and 180 degrees"
+        );
         assert!(aspect_ratio > 0.0, "Aspect ratio must be positive");
 
         let fov_x_radians = Self::convert_fov_y_to_fov_x(fov_y_radians, aspect_ratio);
@@ -149,17 +160,20 @@ impl PaniniShaderSettings {
     }
 }
 
-pub fn copy_out_shader_settings(
-    mut commands: Commands,
-    query: Query<(Entity, &Projection)>
-) {
+pub fn copy_out_shader_settings(mut commands: Commands, query: Query<(Entity, &Projection)>) {
     for (entity, projection) in &query {
         if let Projection::Custom(custom_projection) = projection {
             if let Some(panini_projection) = custom_projection.get::<PaniniProjection>() {
                 if panini_projection.enabled {
-                    commands.get_entity(entity).expect("Entity should persist").insert(panini_projection.settings.clone());
+                    commands
+                        .get_entity(entity)
+                        .expect("Entity should persist")
+                        .insert(panini_projection.settings.clone());
                 } else {
-                    commands.get_entity(entity).expect("Entity should persist").remove::<PaniniShaderSettings>();
+                    commands
+                        .get_entity(entity)
+                        .expect("Entity should persist")
+                        .remove::<PaniniShaderSettings>();
                 }
             }
         }
@@ -170,7 +184,7 @@ pub fn copy_out_shader_settings(
 mod tests {
     use std::f32::consts::PI;
 
-use super::*;
+    use super::*;
 
     const EPSILON: f32 = 1e-6;
 
@@ -204,7 +218,7 @@ use super::*;
         assert!((fov_x - expected_fov_x).abs() < EPSILON);
         assert!(fov_x > 0.0);
     }
-    
+
     #[test]
     fn convert_fov_y_to_fov_x_with_180_fov_returns_180() {
         let fov_y = PI - 0.01; // Just under 180 degrees to avoid tan(90) singularity

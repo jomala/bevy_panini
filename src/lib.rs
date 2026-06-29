@@ -7,23 +7,16 @@ pub mod prelude {
 }
 
 use bevy::{
-    core_pipeline::{
-        core_3d::graph::{Core3d, Node3d},
-    },
+    core_pipeline::Core3dSystems,
+    core_pipeline::schedule::Core3d,
     prelude::*,
     render::{
-        extract_component::{
-            ExtractComponentPlugin,
-            UniformComponentPlugin,
-        },
-        render_graph::{
-            RenderGraphExt, ViewNodeRunner,
-        },
         RenderApp, RenderStartup,
+        extract_component::{ExtractComponentPlugin, UniformComponentPlugin},
     },
 };
 
-use crate::pipeline::{PaniniLabel, PaniniNode, init_post_process_pipeline}; 
+use crate::pipeline::{init_post_process_pipeline, post_process_system};
 use crate::settings::{PaniniShaderSettings, copy_out_shader_settings};
 
 /// This example uses a shader source file from the assets subdirectory
@@ -61,36 +54,9 @@ impl Plugin for PaniniPlugin {
         // It is useful to initialize data that will only live in the RenderApp
         render_app.add_systems(RenderStartup, init_post_process_pipeline);
 
-
-        render_app
-            // Bevy's renderer uses a render graph which is a collection of nodes in a directed acyclic graph.
-            // It currently runs on each view/camera and executes each node in the specified order.
-            // It will make sure that any node that needs a dependency from another node
-            // only runs when that dependency is done.
-            //
-            // Each node can execute arbitrary work, but it generally runs at least one render pass.
-            // A node only has access to the render world, so if you need data from the main world
-            // you need to extract it manually or with the plugin like above.
-            // Add a [`Node`] to the [`RenderGraph`]
-            // The Node needs to impl FromWorld
-            //
-            // The [`ViewNodeRunner`] is a special [`Node`] that will automatically run the node for each view
-            // matching the [`ViewQuery`]
-            .add_render_graph_node::<ViewNodeRunner<PaniniNode>>(
-                // Specify the label of the graph, in this case we want the graph for 3d
-                Core3d,
-                // It also needs the label of the node
-                PaniniLabel,
-            )
-            .add_render_graph_edges(
-                Core3d,
-                // Specify the node ordering.
-                // This will automatically create all required node edges to enforce the given ordering.
-                (
-                    Node3d::Tonemapping,
-                    PaniniLabel,
-                    Node3d::EndMainPassPostProcessing,
-                ),
-            );
+        render_app.add_systems(
+            Core3d,
+            post_process_system.in_set(Core3dSystems::PostProcess),
+        );
     }
 }
