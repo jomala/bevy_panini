@@ -1,6 +1,6 @@
 [package]
 name = "bevy_panini"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Jonathan Lawn <Jonathan.M.Lawn@gmail.com>"]
 build = false
@@ -14,6 +14,10 @@ keywords = [
 categories = ["game-development"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/jomala/bevy_panini/"
+include = [
+    "src/**/*",
+    "assets/shaders/bevy_panini.wgsl",
+]
 
 [dependencies]
 bevy = "0.19"
