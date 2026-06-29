@@ -18,7 +18,29 @@ where the image is being distorted most. Clipping of objects may be more of an i
 * Add the plugin `PaniniPlugin`.
 * Give your 3D camera the custom projection `PaniniProjection` using the component `Projection::custom(PaniniProjection::new().with_panini_depth(0.5).with_fov_y(0.8))` for instance.
 * Select the vertical field-of-view (FOV) and Panini depth as required. The horizontal FOV will be calculated from these and the aspect ratio of the view.
-* Changing the height of the view (e.g. resizing the window) results in the vertical FOV changing to match.
-* Changing the width of the view (e.g. resizing the window) results in the horizontal FOV changing to match that and the given vertical FOV and Panini depth.
+* Changing the shape of the viewport (e.g. resizing the window) does not change the vertical FOV and but does change the horizontal FOV and therefore the distortion.
 
 See the example `skyscrapers` using `cargo run --example skyscrapers`.
+
+* This demonstrates how to use the library.
+* It also provides a mechanism for testing the visual effect of the library.
+* Note that if the Panini depth is set to zero then the post-processing is disabled.
+
+![Skyscrapers example](skyscrapers.png)
+
+## Compatibility with Bevy
+
+The current version of this crate is compatible with Bevy v0.19.
+
+## Contributions
+
+This is a work in progress. Contributions, comments and issues are very welcome, especially from those that have used Panini projections in the past!
+
+## License
+
+This repository is dual-licensed under either:
+
+* [MIT License](http://opensource.org/licenses/MIT)
+* [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+at your option. This means you can select the license you prefer! This dual-licensing approach is the de-facto standard in the Rust ecosystem and there are very good reasons to include both.

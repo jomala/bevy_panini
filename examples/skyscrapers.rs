@@ -1,33 +1,31 @@
 use bevy::{
-    input_focus::tab_navigation::TabGroup, prelude::*, reflect::TypePath, render::render_resource::AsBindGroup, shader::ShaderRef, window::WindowResolution
+    input_focus::tab_navigation::TabGroup, prelude::*, reflect::TypePath,
+    render::render_resource::AsBindGroup, shader::ShaderRef, window::WindowResolution,
 };
 
 use bevy_panini::prelude::*;
 
 mod helpers;
-use helpers::helper_sliders::{VerticalSliderPlugin, ValueLabel, SliderScaledValue, spawn_vertical_slider_ui};
+use helpers::helper_sliders::{
+    SliderScaledValue, ValueLabel, VerticalSliderPlugin, spawn_vertical_slider_ui,
+};
 
 fn main() -> AppExit {
     let mut app = App::new();
 
-    app.add_plugins(
-            DefaultPlugins
-                .set(
-                    WindowPlugin {
-                        primary_window: Some(Window {
-                            resolution: WindowResolution::new(2048, 1024),
-                            title: "Panini Skyscrapers".into(),
-                            ..default()
-                        }),
-                        ..default()
-                    },
-                )
-        )
-        .add_plugins((PaniniPlugin, VerticalSliderPlugin))
-        .add_plugins(MaterialPlugin::<GroundMaterial>::default())
-        .add_plugins(MaterialPlugin::<WallMaterial>::default())
-        .add_systems(Startup, setup)
-        .add_systems(Update, (rotate, settings_change));
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            resolution: WindowResolution::new(2048, 1024),
+            title: "Panini Skyscrapers".into(),
+            ..default()
+        }),
+        ..default()
+    }))
+    .add_plugins((PaniniPlugin, VerticalSliderPlugin))
+    .add_plugins(MaterialPlugin::<GroundMaterial>::default())
+    .add_plugins(MaterialPlugin::<WallMaterial>::default())
+    .add_systems(Startup, setup)
+    .add_systems(Update, (rotate, settings_change));
 
     app.run()
 }
@@ -63,14 +61,19 @@ fn setup(
     // camera
     commands.spawn((
         Camera3d::default(),
-        Transform::from_translation(Vec3::new(0.0, 0.2, 0.0)).looking_at(Vec3::new(1.0, 1.5, 0.0), Vec3::Y),
+        Transform::from_translation(Vec3::new(0.0, 0.2, 0.0))
+            .looking_at(Vec3::new(1.0, 1.5, 0.0), Vec3::Y),
         Camera {
             clear_color: Color::srgb(0.48, 0.62, 0.77).into(),
             ..default()
         },
         // Add the setting to the camera.
         // This component is also used to determine on which camera to run the post processing effect.
-        Projection::custom(PaniniProjection::new().with_panini_depth(0.5).with_fov_y(0.8)),
+        Projection::custom(
+            PaniniProjection::new()
+                .with_panini_depth(0.5)
+                .with_fov_y(0.8),
+        ),
         Rotates,
     ));
 
@@ -127,25 +130,26 @@ fn setup(
     ));
 
     // UI
-    commands.spawn((
-        Node {
-            width: percent(100),
-            height: percent(100),
-            align_items: AlignItems::Start,
-            justify_content: JustifyContent::FlexEnd,
-            display: Display::Flex,
-            flex_direction: FlexDirection::Row,
-            column_gap: px(50),
-            ..default()
-        },
-        TabGroup::default(),
-    ))
-    .with_children(|parent| {
-        spawn_vertical_slider_ui("Tilt", 20.0, 0.0, 90.0, parent, &assets);
-        spawn_vertical_slider_ui("FOV Y", 120.0, 10.0, 170.0, parent, &assets);
-        spawn_vertical_slider_ui("Panini\nDepth", 0.0, 0.0, 2.0, parent, &assets);
-        spawn_vertical_slider_ui("Hard\nCompr", 0.0, 0.0, 1.0, parent, &assets);
-    });
+    commands
+        .spawn((
+            Node {
+                width: percent(100),
+                height: percent(100),
+                align_items: AlignItems::Start,
+                justify_content: JustifyContent::FlexEnd,
+                display: Display::Flex,
+                flex_direction: FlexDirection::Row,
+                column_gap: px(50),
+                ..default()
+            },
+            TabGroup::default(),
+        ))
+        .with_children(|parent| {
+            spawn_vertical_slider_ui("Tilt", 20.0, 0.0, 90.0, parent, &assets);
+            spawn_vertical_slider_ui("FOV Y", 120.0, 10.0, 170.0, parent, &assets);
+            spawn_vertical_slider_ui("Panini\nDepth", 0.0, 0.0, 2.0, parent, &assets);
+            spawn_vertical_slider_ui("Hard\nCompr", 0.0, 0.0, 1.0, parent, &assets);
+        });
 }
 
 #[derive(Component)]
@@ -176,7 +180,7 @@ fn settings_change(
             _ => (),
         }
     }
-    
+
     for (mut projection, mut transform) in &mut projection_query {
         if let Projection::Custom(projection) = &mut *projection {
             if let Some(projection) = projection.get_mut::<PaniniProjection>() {
